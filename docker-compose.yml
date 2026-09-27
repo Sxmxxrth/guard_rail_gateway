@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  gateway:
+    build: .
+    container_name: omniguard-gateway
+    command: uvicorn guard_rail_gateway.api:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - OFFLINE_MODE=true
+      - DEFAULT_PROVIDER=mock
+      - CACHE_ENABLED=true
+      - RATE_LIMIT_ENABLED=true
+      - PROMPT_INJECTION_ENABLED=true
+      - PII_ANONYMIZATION_ENABLED=true
+      - TOXICITY_FILTER_ENABLED=true
+      - OUTPUT_GUARD_ENABLED=true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  dashboard:
+    build: .
+    container_name: omniguard-dashboard
+    command: streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+    environment:
+      - GATEWAY_API_URL=http://gateway:8000
+    depends_on:
+      gateway:
+        condition: service_healthy
+    restart: unless-stopped
